@@ -7,6 +7,8 @@ const { SilverstripeDefinitionProvider } = require('./providers/definition');
 const { SilverstripeDocumentLinkProvider } = require('./providers/documentLink');
 const { SilverstripeHoverProvider } = require('./providers/hover');
 const { SilverstripeFormattingProvider } = require('./providers/formatting');
+const { PhpFormattingProvider } = require('./providers/phpFormatting');
+const { fixIndentation } = require('./providers/fixIndentation');
 
 const SELECTOR = { language: 'silverstripe', scheme: '*' };
 
@@ -35,8 +37,29 @@ function activate(context) {
                 4000
             );
         }),
-        vscode.commands.registerCommand('silverstripe.showOutput', () => output.show())
+        vscode.commands.registerCommand('silverstripe.showOutput', () => output.show()),
+        vscode.commands.registerCommand('silverstripe.fixIndentation', fixIndentation)
     );
+
+    // PHP formatting is registered on demand so it only competes with another PHP
+    // formatter when the user has actually asked for it.
+    let phpFormatting = null;
+    const syncPhpFormatting = () => {
+        const wanted = vscode.workspace.getConfiguration('silverstripe').get('php.format.enable', true);
+        if (wanted && !phpFormatting) {
+            const provider = new PhpFormattingProvider();
+            const selector = { language: 'php', scheme: '*' };
+            phpFormatting = vscode.Disposable.from(
+                vscode.languages.registerDocumentFormattingEditProvider(selector, provider),
+                vscode.languages.registerDocumentRangeFormattingEditProvider(selector, provider)
+            );
+            context.subscriptions.push(phpFormatting);
+        } else if (!wanted && phpFormatting) {
+            phpFormatting.dispose();
+            phpFormatting = null;
+        }
+    };
+    syncPhpFormatting();
 
     // Keep the index in step with the workspace.
     const phpWatcher = vscode.workspace.createFileSystemWatcher('**/*.php');
@@ -54,11 +77,16 @@ function activate(context) {
         vscode.workspace.onDidCloseTextDocument((doc) => shared.forget(doc.uri)),
         vscode.workspace.onDidChangeConfiguration((event) => {
             if (event.affectsConfiguration('silverstripe.index')) index.rebuild();
+            if (event.affectsConfiguration('silverstripe.php.format')) syncPhpFormatting();
         })
     );
 
-    // Warm the index in the background; every provider awaits `ready()` anyway.
-    index.ready().catch((err) => output.appendLine(`[index] ${err && err.stack}`));
+    // Warm the index only when a template is actually open — the extension also
+    // activates for PHP files, and those need nothing from it. Every provider awaits
+    // `ready()` anyway, so nothing breaks if this never runs.
+    if (vscode.workspace.textDocuments.some((doc) => doc.languageId === 'silverstripe')) {
+        index.ready().catch((err) => output.appendLine(`[index] ${err && err.stack}`));
+    }
 
     return { index };
 }

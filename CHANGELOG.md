@@ -42,6 +42,25 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   nothing moves between lines, and `<pre>` / `<textarea>` content is preserved exactly.
 - Settings under `silverstripe.*`, plus **Reindex Project** and **Show Extension Log**
   commands.
+- **PHP indentation rules.** VS Code's built-in PHP configuration describes only
+  alternative syntax (`if:` … `endif;`), so `editor.action.reindentlines` flattened every
+  brace-indented file. The missing brace, bracket and parenthesis rules are contributed
+  here; everything else about PHP — comments, brackets, word selection, docblocks — is
+  left to the built-in configuration.
+- **Format Document for PHP**, indentation only. It tracks state rather than matching
+  per-line patterns, so it handles fluent method chains, `switch`/`case` bodies and
+  several brackets opened on one line, none of which indentation rules can express.
+  Heredocs, nowdocs and inline HTML are preserved byte-for-byte, and nothing but leading
+  and trailing whitespace ever changes, so it composes with PHP-CS-Fixer rather than
+  competing with it. Turn it off with `silverstripe.php.format.enable` if another
+  extension already formats your PHP.
+- **Silverstripe: Fix Indentation** command, applying the formatter to the current
+  selection — or the whole file if nothing is selected — in both `.ss` and `.php`.
+  VS Code's own **Reindent Lines** cannot match the formatter: it skips any line whose
+  first token is a string (so an array entry stranded at column 0 stays there for good),
+  and indentation rules are per-line regexes that cannot see a fluent chain continuing
+  the statement above. Bind this command to your Reindent Lines key to get formatter
+  behaviour from a keystroke, without Format Document's "which formatter?" prompt.
 - A test suite: indentation, parser, resolver and formatter unit tests, plus
   integration tests that drive the real extension in VS Code.
 

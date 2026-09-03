@@ -1,0 +1,18 @@
+{
+    "//": [
+        "VS Code's built-in PHP configuration only describes alternative syntax",
+        "(`if:` … `endif;`) in its indentation rules — nothing about braces. Pressing",
+        "Enter still works because the editor falls back to bracket matching, but",
+        "`editor.action.reindentlines` uses these rules alone, so it flattened every",
+        "brace-indented file.",
+        "",
+        "Only `indentationRules` is declared here. Every other property (comments,",
+        "brackets, wordPattern, onEnterRules) is left to the built-in configuration."
+    ],
+    "indentationRules": {
+        "increaseIndentPattern": "^((?!\\/\\/).)*(\\{[^}\"'`]*|\\([^)\"'`]*|\\[[^\\]\"'`]*)$|^\\s*((else\\s?)?if|else|for(each)?|while|switch|declare)\\b.*:\\s*(\\/[\\/*].*)?$",
+        "decreaseIndentPattern": "^((?!.*?\\/\\*).*\\*\\/)?\\s*[\\}\\]\\)].*$|^\\s*\\b(else|elseif)\\b.*:\\s*$|^\\s*\\bend(if|for(each)?|while|switch|declare)\\s*;",
+        "unIndentedLinePattern": "^(\\t|[ ])*[ ]\\*[^/]*\\*/\\s*$|^(\\t|[ ])*[ ]\\*/\\s*$|^(\\t|[ ])*\\*([ ]([^\\*]|\\*(?!/))*)?$",
+        "indentNextLinePattern": "^\\s*(((if|else ?if|while|for|foreach)\\s*\\(.*\\)\\s*)|else\\s*)$"
+    }
+}

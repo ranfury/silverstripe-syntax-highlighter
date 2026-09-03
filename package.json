@@ -9,7 +9,8 @@
   },
   "main": "./src/extension.js",
   "activationEvents": [
-    "onLanguage:silverstripe"
+    "onLanguage:silverstripe",
+    "onLanguage:php"
   ],
   "capabilities": {
     "untrustedWorkspaces": {
@@ -34,6 +35,10 @@
           ".ss"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "php",
+        "configuration": "./php-language-configuration.json"
       }
     ],
     "grammars": [
@@ -65,6 +70,11 @@
         "command": "silverstripe.showOutput",
         "title": "Show Extension Log",
         "category": "Silverstripe"
+      },
+      {
+        "command": "silverstripe.fixIndentation",
+        "title": "Fix Indentation",
+        "category": "Silverstripe"
       }
     ],
     "configuration": {
@@ -95,6 +105,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show hover documentation for template variables."
+        },
+        "silverstripe.php.format.enable": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Provide an indentation-only **Format Document** for PHP files. It rewrites leading whitespace and nothing else, so it composes with a style fixer such as PHP-CS-Fixer. If another extension already formats your PHP, set `editor.defaultFormatter` for `[php]` to choose between them, or turn this off."
         },
         "silverstripe.format.normaliseTagSpacing": {
           "type": "boolean",

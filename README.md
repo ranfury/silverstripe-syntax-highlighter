@@ -150,6 +150,84 @@ It is deliberately conservative — it only ever changes leading and trailing
 whitespace, never moves anything between lines, and leaves `<pre>` and `<textarea>`
 content byte-for-byte alone, so formatting can never change what a template renders.
 
+## PHP files
+
+Silverstripe is PHP as much as it is templates, and VS Code's built-in PHP support has a
+gap: its indentation rules only describe alternative syntax (`if:` … `endif;`) and say
+nothing about braces. Pressing <kbd>Enter</kbd> still works, because the editor falls
+back to bracket matching — but **Reindent Lines** uses those rules alone, so it flattened
+every brace-indented file.
+
+This extension contributes the missing brace, bracket and parenthesis rules, so
+`editor.action.reindentlines` works on PHP. Nothing else about VS Code's PHP support is
+touched: comments, brackets, word selection and docblock behaviour all still come from
+the built-in configuration.
+
+**Format Document** on a `.php` file re-indents it properly. Unlike the rules above it
+tracks state, so it also handles the three things regex rules cannot express:
+
+```php
+$fields->addFieldsToTab('Root.Main', [   // several brackets on one line indent once
+    UploadField::create('Image')
+        ->setIsMultiUpload(false)        // a fluent chain continues one level in
+        ->setFolderName('Images'),
+]);
+
+switch ($mode) {
+    case 'a':                            // case bodies indent past their label
+        $this->a();
+        break;
+}
+```
+
+It changes leading and trailing whitespace and nothing else — it never reorders, wraps
+or restyles code, and `<pre>`-like content (heredocs, nowdocs and inline HTML outside
+`<?php`) is preserved byte-for-byte. That means it composes with a real style fixer such
+as PHP-CS-Fixer rather than fighting it.
+
+### Reindent Lines cannot match it
+
+**Format Document** and **Reindent Lines** give different results, and the difference is
+in VS Code itself rather than in these rules. Two things stop `editor.action.reindentlines`
+matching the formatter:
+
+- It **skips any line whose first token is a string**, so an array entry such as
+  `'PageHeading' => 'Varchar(255)',` sitting at column 0 is never touched. Worse, that is
+  self-perpetuating: once a line is at column 0 reindent can never bring it back. (Lines
+  that already have some indentation start with a whitespace token, so they are fixed
+  normally — which is why one entry can stay at column 0 while the rest line up.)
+- Indentation rules are per-line regular expressions, so they cannot see that
+  `->setDescription(...)` continues the statement above it. Fluent chains lose their
+  extra level. VS Code's own TypeScript configuration has the same limitation.
+
+If a file already has string-leading lines stranded at column 0, run **Format Document**
+once to repair it; after that reindent behaves on everything except chains.
+
+To get formatter-quality indentation from a keystroke, use
+**Silverstripe: Fix Indentation**. It runs the formatter on the current selection, or the
+whole file if nothing is selected, works in both `.ss` and `.php`, and — unlike Format
+Document — never asks which formatter to use. Bind it to whatever key you had on Reindent
+Lines:
+
+```jsonc
+// keybindings.json
+{
+    "key": "cmd+k cmd+i",
+    "command": "silverstripe.fixIndentation",
+    "when": "editorTextFocus && (editorLangId == silverstripe || editorLangId == php)"
+}
+```
+
+If another extension already formats your PHP — Intelephense does, for instance — VS Code
+will ask which to use the first time. Pick one with:
+
+```jsonc
+"[php]": { "editor.defaultFormatter": "Ranfurly.enhanced-silverstripe-templates" }
+```
+
+or set `silverstripe.php.format.enable` to `false` to leave PHP formatting alone
+entirely. The indentation rules are independent of this setting and always apply.
+
 ## Settings
 
 | Setting | Default | What it does |
@@ -160,8 +238,10 @@ content byte-for-byte alone, so formatting can never change what a template rend
 | `silverstripe.links.enable` | `true` | Clickable links for `<% include %>` names. |
 | `silverstripe.hover.enable` | `true` | Hover documentation for variables. |
 | `silverstripe.format.normaliseTagSpacing` | `true` | Tidy whitespace inside tags when formatting. |
+| `silverstripe.php.format.enable` | `true` | Provide an indentation-only **Format Document** for PHP files. |
 
-Run **Silverstripe: Reindex Project** from the Command Palette after large changes, and
+Run **Silverstripe: Reindex Project** from the Command Palette after large changes,
+**Silverstripe: Fix Indentation** to re-indent the current file or selection, and
 **Silverstripe: Show Extension Log** to see what was indexed. Indexing reads PHP source,
 so it only runs in [trusted workspaces](https://code.visualstudio.com/docs/editor/workspace-trust);
 highlighting, indentation and formatting always work.

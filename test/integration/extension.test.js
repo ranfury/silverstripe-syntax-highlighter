@@ -7,7 +7,7 @@ const HOME_TEMPLATE = vscode.Uri.file(path.join(ROOT, 'app/templates/App/PageTyp
 
 async function openTemplate() {
     const document = await vscode.workspace.openTextDocument(HOME_TEMPLATE);
-    await vscode.window.showTextDocument(document);
+    await vscode.window.showTextDocument(document, { preview: false });
     const extension = vscode.extensions.getExtension('Ranfurly.enhanced-silverstripe-templates');
     assert.ok(extension, 'extension should be present');
     const api = await extension.activate();
@@ -31,6 +31,10 @@ async function definitionAt(document, needle, offsetInto = 1) {
 }
 
 suite('Silverstripe templates', () => {
+    setup(async () => {
+        await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    });
+
     test('.ss files use the silverstripe language', async () => {
         const { document } = await openTemplate();
         assert.strictEqual(document.languageId, 'silverstripe');
@@ -107,9 +111,14 @@ suite('Silverstripe templates', () => {
                 '</div>',
             ].join('\n'),
         });
-        const editor = await vscode.window.showTextDocument(document);
-        await vscode.commands.executeCommand('editor.action.formatDocument');
-        assert.strictEqual(editor.document.getText(), [
+        await vscode.window.showTextDocument(document, { preview: false });
+        const edits = await vscode.commands.executeCommand(
+            'vscode.executeFormatDocumentProvider', document.uri, { tabSize: 4, insertSpaces: true }
+        );
+        const edit = new vscode.WorkspaceEdit();
+        edit.set(document.uri, edits);
+        await vscode.workspace.applyEdit(edit);
+        assert.strictEqual(document.getText(), [
             '<div>',
             '    <svg viewBox="0 0 24 24">',
             '        <path d="M3 6h18"/>',
