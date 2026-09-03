@@ -7,12 +7,17 @@
 		"mocha": true
 	},
 	"parserOptions": {
-		"ecmaVersion": 2018,
+		"ecmaVersion": 2022,
 		"ecmaFeatures": {
 			"jsx": true
 		},
 		"sourceType": "module"
 	},
+	"ignorePatterns": [
+		"node_modules/**",
+		".vscode-test/**",
+		"test/fixtures/**"
+	],
 	"rules": {
 		"no-const-assign": "warn",
 		"no-this-before-super": "warn",

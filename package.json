@@ -2,10 +2,20 @@
   "name": "enhanced-silverstripe-templates",
   "displayName": "Enhanced Silverstripe Templates",
   "description": "Silverstripe Template Language Highlighter and Snippets",
-  "version": "0.0.35",
+  "version": "0.1.0",
   "author": "Emmanuel Davies",
   "engines": {
     "vscode": "^1.105.0"
+  },
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onLanguage:silverstripe"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Syntax highlighting, indentation and formatting always work. Indexing PHP to resolve variables and includes only runs in trusted workspaces."
+    }
   },
   "categories": [
     "Programming Languages"
@@ -14,8 +24,15 @@
     "languages": [
       {
         "id": "silverstripe",
-        "aliases": ["Silverstripe", "silverstripe", "SS", "ss"],
-        "extensions": [".ss"],
+        "aliases": [
+          "Silverstripe",
+          "silverstripe",
+          "SS",
+          "ss"
+        ],
+        "extensions": [
+          ".ss"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -38,6 +55,54 @@
         "*.ss": "silverstripe"
       }
     },
+    "commands": [
+      {
+        "command": "silverstripe.reindex",
+        "title": "Reindex Project",
+        "category": "Silverstripe"
+      },
+      {
+        "command": "silverstripe.showOutput",
+        "title": "Show Extension Log",
+        "category": "Silverstripe"
+      }
+    ],
+    "configuration": {
+      "title": "Silverstripe Templates",
+      "properties": {
+        "silverstripe.index.enable": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Index the workspace so `$Variables` and `<% include %>` names can be resolved to their definitions."
+        },
+        "silverstripe.index.includeVendor": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Also index `vendor/*/*/src` and `vendor/*/*/code`, so members inherited from `SiteTree` and `DataObject` resolve. Turn off on very large projects."
+        },
+        "silverstripe.index.maxFiles": {
+          "type": "number",
+          "default": 20000,
+          "minimum": 100,
+          "description": "Maximum number of PHP files to index per pass."
+        },
+        "silverstripe.links.enable": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show Ctrl/Cmd-clickable links for `<% include %>` names and `<% require %>` paths."
+        },
+        "silverstripe.hover.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show hover documentation for template variables."
+        },
+        "silverstripe.format.normaliseTagSpacing": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "When formatting, tidy whitespace inside tags so `<%if $X%>` becomes `<% if $X %>`."
+        }
+      }
+    },
     "snippets": [
       {
         "language": "silverstripe",
@@ -47,17 +112,18 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "pretest": "npm run lint",
-    "test": "vscode-test"
+    "test:unit": "node --test test/unit/*.test.js",
+    "test:integration": "vscode-test",
+    "test": "npm run lint && npm run test:unit && npm run test:integration"
   },
   "devDependencies": {
-    "@types/vscode": "^1.105.0",
     "@types/mocha": "^10.0.7",
     "@types/node": "20.x",
+    "@types/vscode": "^1.105.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
     "eslint": "^8.57.0",
-    "typescript": "^5.4.5",
-    "@vscode/test-cli": "^0.0.9",
-    "@vscode/test-electron": "^2.4.0"
+    "typescript": "^5.4.5"
   },
   "repository": {
     "type": "git",

@@ -1,0 +1,11 @@
+---
+Name: extensions
+---
+PageController:
+  extensions:
+    - Toast\Extensions\ControllerExtension
+
+SilverStripe\Assets\File:
+  extensions:
+    # - Toast\Extensions\DisabledExtension
+    - Toast\Extensions\FileExtension

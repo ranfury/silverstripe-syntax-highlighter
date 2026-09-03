@@ -1,3 +1,4 @@
+node_modules/**
 .vscode/**
 .vscode-test/**
 test/**
@@ -8,3 +9,4 @@ vsc-extension-quickstart.md
 **/*.map
 **/.eslintrc.json
 **/.vscode-test.*
+icon-lg.png

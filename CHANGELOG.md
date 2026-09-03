@@ -4,6 +4,64 @@ All notable changes to the "silverstripe-syntax-highlighter" extension will be d
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.1.0]
 
-- Initial release
+### Added
+
+- **Go to Definition** for `$Variables` (`$db`, `$casting`, relations, methods and the
+  `$Foo` -> `getFoo()` convention), `<% include %>` names and `<%t %>` translation keys.
+  Quoted arguments are deliberately not navigable — a string passed to a method or a tag
+  is a value, not a reference — but an unquoted variable argument such as the
+  `$CategoryID` in `$List.Filter('TypeID', $CategoryID)` is.
+- A background index of workspace PHP classes and templates that follows inheritance
+  into `vendor/`, so members inherited from `SiteTree` and `DataObject` resolve.
+- Scope narrowing inside `<% loop %>` / `<% with %>`, with `$Up`, `$Top` and `$Me`
+  tracked through nesting, and chains followed through relations, typed methods and
+  `@return static`.
+- Members are resolved the way Silverstripe resolves them: through the page's
+  controller as well as the page, through `use`d traits (so image manipulations such as
+  `Fill` and `ScaleMaxWidth` resolve), through `Extension` classes wired up in
+  `_config/*.yml`, and through `DataObject`'s built-in `$fixed_fields` (`$ID`,
+  `$ClassName`, `$Created`, `$LastEdited`).
+- Keys of `ArrayData` records built inside a method resolve to the line that declares
+  them, and the value's type is traced — so a list built with
+  `'Items' => TaxonomyTerm::get()->filter(...)` lets `<% loop $Items %>` narrow to
+  `TaxonomyTerm`.
+- `SS_List` calls are handled as list operations rather than member lookups:
+  `<% loop $Items.Sort('Name') %>` narrows scope exactly as `<% loop $Items %>` does,
+  and `$Items.Count` reports a list method instead of jumping to an unrelated class.
+- Interface and union return types resolve to the concrete class, so
+  `$Image.Fill(400,300).URL` works even though `Fill()` is `@return AssetContainer`.
+- `<%-- @var App\Pages\HomePage --%>` hints to pin the class a shared include renders
+  against.
+- Ctrl/Cmd-clickable document links for `<% include %>` names, and hovers showing what a
+  variable resolved to.
+- **Format Document** and **Format Selection** for `.ss` files: re-indents HTML, SVG,
+  Silverstripe blocks, multi-line attribute lists and `<script>` / `<style>` bodies,
+  and tidies whitespace inside tags. Only leading and trailing whitespace changes,
+  nothing moves between lines, and `<pre>` / `<textarea>` content is preserved exactly.
+- Settings under `silverstripe.*`, plus **Reindex Project** and **Show Extension Log**
+  commands.
+- A test suite: indentation, parser, resolver and formatter unit tests, plus
+  integration tests that drive the real extension in VS Code.
+
+### Fixed
+
+- **Self-closing tags no longer increase indentation.** `<path/>`, `<circle/>`,
+  `<rect/>`, `<use/>` and `<stop/>` each added an indent level, which is why SVG icons
+  and their children drifted right. The guard against self-closing tags sat *after* the
+  `>`, so it only ever saw the rest of the line, never the tag's own `/` — which
+  `[^>]*` had already swallowed as an attribute character.
+- Pressing <kbd>Enter</kbd> after a self-closing tag, or after a void element such as
+  `<img>` or `<br>`, no longer adds an indent level.
+- `class Foo extends \Page` — a parent named with a leading backslash — was not parsed,
+  so nothing inherited from it resolved.
+
+### Unchanged
+
+- The TextMate grammar. No scope names changed, so syntax colours are exactly as
+  before.
+
+## [0.0.35] and earlier
+
+- Syntax highlighting and snippets for `.ss` templates.

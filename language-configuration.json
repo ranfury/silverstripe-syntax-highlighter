@@ -29,7 +29,7 @@
     },
         "onEnterRules": [
         {
-            "beforeText": "^\\s*<([a-zA-Z][\\w\\-]*)[^>]*>\\s*$",
+            "beforeText": "^\\s*<(?![^>]*\/>)(?!(?:img|input|br|hr|meta|link|area|base|col|embed|param|source|track|wbr)\\b)([a-zA-Z][\\w\\-]*)[^>]*>\\s*$",
             "afterText": "^\\s*</[a-zA-Z][\\w\\-]*>\\s*$",
             "action": {
                 "indent": "indentOutdent",
@@ -44,7 +44,7 @@
         },
     ],
     "indentationRules": {
-        "increaseIndentPattern": "^\\s*<%\\s*(if|loop|with|else_if|else|cached)\\b(?!.*<%\\s*end_).*%>\\s*$|^\\s*<%--\\s*<%\\s*(if|loop|with|else_if|else|cached)\\b.*%>\\s*--%>$|^\\s*<(?!\/)(?!(?:img|input|br|hr|meta|link|area|base|col|embed|param|source|track|wbr)\\b)[A-Za-z][\\w\\-]*(?:\\s[^>]*)?>(?!.*</[A-Za-z][\\w\\-]*>\\s*$)(?!.*\/>)((?!<(?:img|input|br|hr|meta|link|area|base|col|embed|param|source|track|wbr)[^>]*>$).)*$|^.*\\{\\s*(<%.*%>)?\\s*$|^.*\\[\\s*(<%.*%>)?\\s*$|^\\s*<script\\b[^>]*?>\\s*$|^\\s*<style\\b[^>]*?>\\s*$",
+        "increaseIndentPattern": "^\\s*<%\\s*(if|loop|with|else_if|else|cached)\\b(?!.*<%\\s*end_).*%>\\s*$|^\\s*<%--\\s*<%\\s*(if|loop|with|else_if|else|cached)\\b.*%>\\s*--%>$|^\\s*<(?!\/)(?![^>]*\/>)(?!(?:img|input|br|hr|meta|link|area|base|col|embed|param|source|track|wbr)\\b)[A-Za-z][\\w\\-]*(?:\\s[^>]*)?>(?!.*</[A-Za-z][\\w\\-]*>\\s*$)(?!.*\/>)((?!<(?:img|input|br|hr|meta|link|area|base|col|embed|param|source|track|wbr)[^>]*>$).)*$|^.*\\{\\s*(<%.*%>)?\\s*$|^.*\\[\\s*(<%.*%>)?\\s*$|^\\s*<script\\b[^>]*?>\\s*$|^\\s*<style\\b[^>]*?>\\s*$",
         "decreaseIndentPattern": "^\\s*<%\\s*(end_(if|loop|with|cached)|else_if|else)\\b.*%>\\s*$|^\\s*<%--\\s*<%\\s*(end_(if|loop|with|cached)|else_if|else)\\b.*%>\\s*--%>$|^\\s*</[A-Za-z][\\w\\-]*>\\s*$|^\\s*</script>\\s*$|^\\s*</style>\\s*$|^\\s*([\\}\\]]+).*[,;]?\\s*$"
     }
 }
