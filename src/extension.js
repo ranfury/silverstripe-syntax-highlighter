@@ -6,6 +6,7 @@ const shared = require('./providers/shared');
 const { SilverstripeDefinitionProvider } = require('./providers/definition');
 const { SilverstripeDocumentLinkProvider } = require('./providers/documentLink');
 const { SilverstripeHoverProvider } = require('./providers/hover');
+const { SilverstripeCompletionProvider } = require('./providers/completion');
 const { SilverstripeFormattingProvider } = require('./providers/formatting');
 const { PhpFormattingProvider } = require('./providers/phpFormatting');
 const { fixIndentation } = require('./providers/fixIndentation');
@@ -22,6 +23,9 @@ function activate(context) {
         vscode.languages.registerDefinitionProvider(SELECTOR, new SilverstripeDefinitionProvider(index)),
         vscode.languages.registerDocumentLinkProvider(SELECTOR, new SilverstripeDocumentLinkProvider(index)),
         vscode.languages.registerHoverProvider(SELECTOR, new SilverstripeHoverProvider(index)),
+        vscode.languages.registerCompletionItemProvider(
+            SELECTOR, new SilverstripeCompletionProvider(index), '$', '.', ' '
+        ),
         vscode.languages.registerDocumentFormattingEditProvider(SELECTOR, formatting),
         vscode.languages.registerDocumentRangeFormattingEditProvider(SELECTOR, formatting)
     );

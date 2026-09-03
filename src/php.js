@@ -324,8 +324,9 @@ function parsePhp(text) {
     const addMember = (owner, member) => {
         const key = member.name.toLowerCase();
         if (!owner.members.has(key)) owner.members.set(key, member);
-        // A template writes `$Foo` for a `getFoo()` method.
-        const getter = /^get([A-Za-z_][A-Za-z0-9_]*)$/.exec(member.name);
+        // A template writes `$Foo` for a `getFoo()` method. The capital matters: it is
+        // what separates that convention from an ordinary method such as `get_category()`.
+        const getter = /^get([A-Z][A-Za-z0-9_]*)$/.exec(member.name);
         if (getter) {
             const alias = getter[1].toLowerCase();
             if (!owner.members.has(alias)) {

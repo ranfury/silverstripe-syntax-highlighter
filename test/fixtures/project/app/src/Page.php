@@ -11,4 +11,13 @@ class Page extends SiteTree
 
 class PageController
 {
+    public function getIsDev()
+    {
+        return false;
+    }
+
+    public function hasBanner()
+    {
+        return true;
+    }
 }

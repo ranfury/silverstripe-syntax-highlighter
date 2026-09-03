@@ -214,11 +214,23 @@ class ClassGraph {
     companionsOf(cls) {
         if (!cls) return [];
         const found = [cls];
-        const partner = cls.fqcn.endsWith('Controller')
-            ? cls.fqcn.slice(0, -'Controller'.length)
-            : `${cls.fqcn}Controller`;
-        const other = this.getClass(partner);
-        if (other && other !== cls) found.push(other);
+
+        if (cls.fqcn.endsWith('Controller')) {
+            const record = this.getClass(cls.fqcn.slice(0, -'Controller'.length));
+            if (record && record !== cls) found.push(record);
+            return found;
+        }
+
+        // The controller may be declared against an ancestor: a page type with no
+        // controller of its own is still rendered by the nearest one that has it, which
+        // is where project-wide helpers usually live.
+        for (const ancestor of this.ancestry(cls)) {
+            const controller = this.getClass(`${ancestor.fqcn}Controller`);
+            if (controller && controller !== cls) {
+                found.push(controller);
+                break;
+            }
+        }
         return found;
     }
 

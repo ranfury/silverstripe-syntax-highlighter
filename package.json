@@ -58,6 +58,9 @@
     "configurationDefaults": {
       "files.associations": {
         "*.ss": "silverstripe"
+      },
+      "[silverstripe]": {
+        "editor.suggest.snippetsPreventQuickSuggestions": false
       }
     },
     "commands": [
@@ -105,6 +108,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show hover documentation for template variables."
+        },
+        "silverstripe.completion.enable": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Suggest variables, member names, `<% include %>` template names and block tags while typing. Nothing is suggested for `$` in a template whose class cannot be determined — add a `<%-- @var App\\Pages\\HomePage --%>` hint to give it one."
         },
         "silverstripe.php.format.enable": {
           "type": "boolean",

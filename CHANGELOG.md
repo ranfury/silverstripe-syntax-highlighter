@@ -36,6 +36,20 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   against.
 - Ctrl/Cmd-clickable document links for `<% include %>` names, and hovers showing what a
   variable resolved to.
+- **Suggestions**, driven by the same index as Go to Definition: `$` offers the members
+  of the class in scope, `$Foo.` offers the members of whatever it resolves to (or
+  `SS_List` methods for a list) plus casting helpers, `<% ` offers block tags with the
+  matching closer first, and `<% include ` offers every template in the workspace. Scope
+  narrows inside `<% loop %>` and `<% with %>` exactly as it does for navigation.
+  Suggestions are ranked with your own class first and `vendor` last, and nothing at all
+  is offered where the template's class cannot be determined.
+  A `getFoo()` method is offered both as `$Foo` and as `$getFoo`, the idiomatic spelling
+  first; methods with any other prefix (`hasBanner()`, `isPublished()`) are offered as
+  written. Controller members are included, falling back to the nearest controller in the
+  page's ancestry when a page type has none of its own. Suggestions wait for one
+  character after the `$` rather than listing every member.
+- `editor.suggest.snippetsPreventQuickSuggestions` now defaults to `false` for `.ss`
+  files, so suggestions still appear while tabbing through a snippet's placeholders.
 - **Format Document** and **Format Selection** for `.ss` files: re-indents HTML, SVG,
   Silverstripe blocks, multi-line attribute lists and `<script>` / `<style>` bodies,
   and tidies whitespace inside tags. Only leading and trailing whitespace changes,

@@ -139,6 +139,58 @@ Without a hint the extension still offers every matching member in the workspace
 ranked with your own code above `vendor/`. Hovering a variable shows what it resolved
 to, which is the quickest way to see why a jump went where it did.
 
+## Suggestions
+
+Typing `$` offers the members of whatever class is in scope — the same resolution that
+drives Go to Definition, run the other way round:
+
+| Typing | Offers |
+| --- | --- |
+| `$` | `$db` fields, relations, methods, `ArrayData` keys, plus scope variables and globals |
+| `$Foo.` | members of the type `$Foo` resolves to, plus the casting helpers (`.XML`, `.ATT`, …) |
+| `$List.` | `SS_List` methods — `Count`, `First`, `Sort`, … — because an element needs a loop first |
+| `<% ` | block tags, with the closer for the block you are inside offered first |
+| `<% include ` | every template in the workspace |
+
+Scope narrows the same way it does for Go to Definition, so inside
+`<% loop $Testimonials %>` you are offered `Testimonial`'s fields rather than the page's.
+
+Suggestions are ordered **your own class first, then the rest of your code, then
+`vendor`** — on a real page that is about 10 of your own members ahead of 220 inherited
+ones.
+
+A `getFoo()` method is offered **both ways**: `$Foo`, the idiomatic template spelling,
+and `$getFoo`, which is equally valid and which plenty of people write. The idiomatic one
+sorts first and the other is labelled *same as `$Foo`*. Methods named with any other
+prefix — `hasBanner()`, `isPublished()` — are offered exactly as written.
+
+Members defined on the **controller** are included as well. If a page type has no
+controller of its own, the nearest one in its ancestry is used, which is where
+project-wide helpers usually live.
+
+Nothing is suggested until you have typed at least one character after the `$`; a bare
+`$` listing every member of the class is noise rather than help.
+
+Picking `loop`, `with`, `include` or `require` leaves the cursor after the keyword, so
+the next suggestion list follows on: `<% ` → `loop` → `$` → `Testimonials`.
+
+**Where the class cannot be determined, nothing is suggested.** A shared include has no
+class of its own, and offering every member in the workspace would be noise rather than
+help — add a `<%-- @var App\PageTypes\HomePage --%>` hint to give it one.
+
+Completion is on inside `<script>` blocks too, since Silverstripe interpolates there.
+Turn the whole thing off with `silverstripe.completion.enable`.
+
+By default VS Code suppresses suggestions while you are tabbing through a snippet's
+placeholders, which makes `<% loop $1 %>` unhelpful exactly when you want a list. This
+extension turns that off for `.ss` files:
+
+```jsonc
+"[silverstripe]": { "editor.suggest.snippetsPreventQuickSuggestions": false }
+```
+
+Set it back to `true` in your own settings if you would rather have the quiet.
+
 ## Format Document
 
 **Format Document** (<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd>) re-indents `.ss`
@@ -237,6 +289,7 @@ entirely. The indentation rules are independent of this setting and always apply
 | `silverstripe.index.maxFiles` | `20000` | Cap on PHP files indexed per pass. |
 | `silverstripe.links.enable` | `true` | Clickable links for `<% include %>` names. |
 | `silverstripe.hover.enable` | `true` | Hover documentation for variables. |
+| `silverstripe.completion.enable` | `true` | Suggest variables, members, template names and block tags. |
 | `silverstripe.format.normaliseTagSpacing` | `true` | Tidy whitespace inside tags when formatting. |
 | `silverstripe.php.format.enable` | `true` | Provide an indentation-only **Format Document** for PHP files. |
 
