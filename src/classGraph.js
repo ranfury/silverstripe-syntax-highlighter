@@ -151,6 +151,53 @@ class ClassGraph {
         return null;
     }
 
+    /**
+     * Every member reachable from `cls`, nearest declaration first.
+     *
+     * Deliberately mirrors {@link resolveMember}'s search order — class, its traits, the
+     * extensions applied to it, then up the inheritance chain — so that anything Go to
+     * Definition can find is also something completion can offer. The two drifting apart
+     * is how `$SiteConfig.TermsLink` came to resolve but never be suggested.
+     */
+    visibleMembers(cls) {
+        if (!cls) return [];
+        const out = [];
+        const seen = new Set();
+
+        const take = (owner, depth) => {
+            for (const [key, member] of owner.members) {
+                if (seen.has(key)) continue;
+                seen.add(key);
+                out.push({ cls: owner, member, depth });
+            }
+        };
+
+        const takeTraits = (owner, depth, guard) => {
+            for (const name of owner.traits || []) {
+                const trait = this.getClass(name);
+                if (!trait || guard.has(trait.fqcn)) continue;
+                guard.add(trait.fqcn);
+                take(trait, depth);
+                takeTraits(trait, depth, guard);
+            }
+        };
+
+        this.ancestry(cls).forEach((owner, depth) => {
+            take(owner, depth);
+            takeTraits(owner, depth, new Set());
+            for (const name of this.extensionsByClass.get(owner.fqcn.toLowerCase()) || []) {
+                const extension = this.getClass(name.split('(')[0]);
+                if (!extension) continue;
+                for (const applied of this.ancestry(extension)) {
+                    take(applied, depth);
+                    takeTraits(applied, depth, new Set());
+                }
+            }
+        });
+
+        return out;
+    }
+
     /** Every class in the workspace exposing a member with this name. */
     findMembersByName(name) {
         if (!name) return [];

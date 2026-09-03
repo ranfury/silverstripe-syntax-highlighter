@@ -152,8 +152,28 @@ drives Go to Definition, run the other way round:
 | `<% ` | block tags, with the closer for the block you are inside offered first |
 | `<% include ` | every template in the workspace |
 
-Scope narrows the same way it does for Go to Definition, so inside
-`<% loop $Testimonials %>` you are offered `Testimonial`'s fields rather than the page's.
+Scope narrows the same way it does for Go to Definition — through dot notation, through
+`<% loop %>`, and through `<% with %>`:
+
+```ss
+$SiteConfig.ContactUsLink          <%-- SiteConfig's fields, including your extensions --%>
+$HeroImage.Fill(400,300).URL       <%-- follows the relation, then the fluent chain --%>
+
+<% with $SiteConfig %>
+    $ContactUsLink                 <%-- same scope, entered --%>
+<% end_with %>
+
+<% loop $Testimonials %>
+    $Quote                         <%-- Testimonial's fields, not the page's --%>
+    $Up.Subtitle                   <%-- back out to the page --%>
+<% end_loop %>
+```
+
+The built-in globals carry their types, so `$SiteConfig` resolves to `SiteConfig`,
+`$CurrentMember` and `$CurrentUser` to `Member`, and `$Now` to `DBDatetime` — and from
+there the usual inheritance, trait and `_config` extension lookups apply, so your own
+`SiteConfigExtension` fields are both navigable and suggested. Globals that are just strings
+(`$ThemeDir`, `$BaseHref`, `$Layout`, …) have no members and are not pretended to.
 
 Suggestions are ordered **your own class first, then the rest of your code, then
 `vendor`** — on a real page that is about 10 of your own members ahead of 220 inherited

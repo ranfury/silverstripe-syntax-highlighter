@@ -113,9 +113,9 @@ class SilverstripeCompletionProvider {
             items.push(simple(name, range, BUILTIN, vscode.CompletionItemKind.Variable,
                 'Silverstripe scope variable'));
         }
-        for (const name of GLOBAL_VARIABLES) {
+        for (const [name, type] of GLOBAL_VARIABLES) {
             items.push(simple(name, range, GLOBAL, vscode.CompletionItemKind.Constant,
-                'Silverstripe template global'));
+                type ? `Silverstripe global — ${type.split('\\').pop()}` : 'Silverstripe template global'));
         }
         return items;
     }
@@ -143,6 +143,10 @@ class SilverstripeCompletionProvider {
             }
             return items;
         }
+        // `$SiteConfig.` and `$Up.` land on a class directly rather than through a member.
+        if (walked.status === 'global' || walked.status === 'language') {
+            return walked.cls ? items.concat(this._members([walked.cls], range)) : items;
+        }
         if (walked.status !== 'resolved') return items;
 
         const target = classForMember(this.index, walked.member, walked.cls);
@@ -159,28 +163,27 @@ class SilverstripeCompletionProvider {
         const items = [];
         const seen = new Set();
         for (const cls of classes) {
-            this.index.ancestry(cls).forEach((owner, depth) => {
+            for (const { cls: owner, member, depth } of this.index.visibleMembers(cls)) {
+                const key = member.name.toLowerCase();
+                if (seen.has(key)) continue;
+                seen.add(key);
+
+                // `getFoo()` is offered both ways: `$Foo` is the idiomatic spelling, but
+                // `$getFoo` is equally valid and plenty of people write it. The idiomatic
+                // one sorts first.
+                const spelledOut = /^get[A-Z]/.test(member.name)
+                    && owner.members.has(member.name.slice(3).toLowerCase());
+
                 const vendor = /[\\/]vendor[\\/]/.test(owner.uri.path || '');
-                for (const [key, member] of owner.members) {
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-
-                    // `getFoo()` is offered both ways: `$Foo` is the idiomatic spelling,
-                    // but `$getFoo` is equally valid and plenty of people write it. The
-                    // idiomatic one sorts first.
-                    const spelledOut = /^get[A-Z]/.test(member.name)
-                        && owner.members.has(member.name.slice(3).toLowerCase());
-
-                    const bucket = depth === 0 ? OWN : (vendor ? VENDOR : PROJECT);
-                    const item = new vscode.CompletionItem(member.name, kindOf(member));
-                    item.range = range;
-                    item.filterText = member.name;
-                    item.sortText = bucket + (spelledOut ? '~' : '') + member.name.toLowerCase();
-                    item.detail = spelledOut ? `same as $${member.name.slice(3)}` : detailOf(member);
-                    item.documentation = new vscode.MarkdownString(describeMember(owner, member));
-                    items.push(item);
-                }
-            });
+                const bucket = vendor ? VENDOR : (depth === 0 ? OWN : PROJECT);
+                const item = new vscode.CompletionItem(member.name, kindOf(member));
+                item.range = range;
+                item.filterText = member.name;
+                item.sortText = bucket + (spelledOut ? '~' : '') + member.name.toLowerCase();
+                item.detail = spelledOut ? `same as $${member.name.slice(3)}` : detailOf(member);
+                item.documentation = new vscode.MarkdownString(describeMember(owner, member));
+                items.push(item);
+            }
         }
         return items;
     }

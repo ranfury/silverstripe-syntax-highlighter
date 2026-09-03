@@ -5,6 +5,10 @@ PageController:
   extensions:
     - Toast\Extensions\ControllerExtension
 
+SilverStripe\SiteConfig\SiteConfig:
+  extensions:
+    - Toast\Extensions\SiteConfigExtension
+
 SilverStripe\Assets\File:
   extensions:
     # - Toast\Extensions\DisabledExtension

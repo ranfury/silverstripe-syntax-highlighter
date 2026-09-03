@@ -177,3 +177,91 @@ test('a sibling key ends the extensions list', () => {
     ].join('\n'));
     assert.deepStrictEqual(parsed.get('app\\thing'), ['App\\Real']);
 });
+
+// --- globals carry a type, so they narrow scope like any other object ---------------
+
+const HOME = uriFor(path.join(ROOT, 'app/templates/App/PageTypes/Layout/HomePage.ss'));
+
+test('a chain through a global resolves on the global class', () => {
+    const r = resolveAt('<p>$SiteConfig.Contact|UsLink</p>', HOME);
+    assert.strictEqual(r.status, 'resolved');
+    assert.strictEqual(r.cls.fqcn, 'SilverStripe\\SiteConfig\\SiteConfig');
+    assert.strictEqual(r.member.name, 'ContactUsLink');
+});
+
+test('<% with %> on a global enters its class', () => {
+    const r = resolveAt('<% with $SiteConfig %>$Contact|UsLink<% end_with %>', HOME);
+    assert.strictEqual(r.status, 'resolved');
+    assert.strictEqual(r.cls.fqcn, 'SilverStripe\\SiteConfig\\SiteConfig');
+});
+
+test('$CurrentMember resolves to Member', () => {
+    assert.strictEqual(
+        resolveAt('<p>$CurrentMember.Fir|stName</p>', HOME).cls.fqcn,
+        'SilverStripe\\Security\\Member'
+    );
+    assert.strictEqual(
+        resolveAt('<% with $CurrentMember %>$Ema|il<% end_with %>', HOME).cls.fqcn,
+        'SilverStripe\\Security\\Member'
+    );
+});
+
+test('a bare global still reports as a global, now with its class', () => {
+    const r = resolveAt('<p>$SiteCon|fig</p>', HOME);
+    assert.strictEqual(r.status, 'global');
+    assert.strictEqual(r.cls.fqcn, 'SilverStripe\\SiteConfig\\SiteConfig');
+});
+
+test('globals that are strings have no class and no scope', () => {
+    const r = resolveAt('<link href="$ThemeD|ir/css/app.css">', HOME);
+    assert.strictEqual(r.status, 'global');
+    assert.strictEqual(r.cls, null);
+    // Nothing to walk into, so a chain on one does not pretend otherwise.
+    assert.notStrictEqual(resolveAt('<p>$ThemeDir.Fo|o</p>', HOME).status, 'resolved');
+});
+
+test('a field of the same name on the page still beats the global', () => {
+    // App\PageTypes\HomePage has no `SiteConfig` member, so the global wins there; a
+    // class that did declare one would take precedence.
+    const page = index.getClass('App\\PageTypes\\HomePage');
+    assert.strictEqual(index.resolveMember(page, 'SiteConfig'), null);
+});
+
+test('what resolves is also what is offered', () => {
+    // Lookup walks class -> traits -> extensions -> ancestry; enumeration must match, or
+    // a member resolves for Go to Definition but is never suggested.
+    for (const fqcn of [
+        'SilverStripe\\SiteConfig\\SiteConfig',
+        'SilverStripe\\Assets\\Image',
+        'App\\PageTypes\\HomePage',
+        'Toast\\Pages\\CollectionPage',
+    ]) {
+        const cls = index.getClass(fqcn);
+        assert.ok(cls, `${fqcn} should be indexed`);
+        const offered = new Set(index.visibleMembers(cls).map((v) => v.member.name.toLowerCase()));
+        for (const { member } of index.visibleMembers(cls)) {
+            assert.ok(index.resolveMember(cls, member.name),
+                `${fqcn}.${member.name} is offered but does not resolve`);
+        }
+        // And the other direction, for members that arrive through an extension.
+        for (const name of ['TermsLink', 'CompanyEmail']) {
+            if (index.resolveMember(cls, name)) {
+                assert.ok(offered.has(name.toLowerCase()),
+                    `${fqcn}.${name} resolves but is not offered`);
+            }
+        }
+    }
+});
+
+test('extension members reach a global through its class', () => {
+    const r = resolveAt('<p>$SiteConfig.Terms|Link</p>', HOME);
+    assert.strictEqual(r.status, 'resolved');
+    assert.strictEqual(r.cls.fqcn, 'Toast\\Extensions\\SiteConfigExtension');
+});
+
+test('members from a trait are enumerated as well as resolved', () => {
+    const image = index.getClass('SilverStripe\\Assets\\Image');
+    const offered = index.visibleMembers(image).map((v) => v.member.name);
+    assert.ok(offered.includes('Fill'), 'ImageManipulation::Fill should be offered');
+    assert.ok(offered.includes('Title'), 'inherited $db field should be offered');
+});

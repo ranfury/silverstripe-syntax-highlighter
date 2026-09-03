@@ -301,6 +301,83 @@ suite('Completion', () => {
         assert.ok(labels.includes('ATT'));
     });
 
+    test('a dot on a global offers that class members', async () => {
+        const items = await completeAt([
+            '<%-- @var App\\PageTypes\\HomePage --%>',
+            '<p>$SiteConfig.C|</p>',
+        ].join('\n'));
+        const labels = items.map((i) => i.label);
+        assert.ok(labels.includes('ContactUsLink'), `expected SiteConfig fields, got ${labels.slice(0, 12)}`);
+        assert.ok(labels.includes('Tagline'));
+    });
+
+    test('extension members are suggested through a global', async () => {
+        // Regression: these resolved for Go to Definition but were never offered,
+        // because completion walked only the inheritance chain.
+        const items = await completeAt([
+            '<%-- @var App\\PageTypes\\HomePage --%>',
+            '<p>$SiteConfig.T|</p>',
+        ].join('\n'));
+        const labels = items.map((i) => i.label);
+        assert.ok(labels.includes('TermsLink'),
+            `expected the extension's has_one, got ${labels.slice(0, 12)}`);
+        assert.ok(labels.includes('CompanyEmail'), 'and its $db fields');
+    });
+
+    test('extension members are suggested inside <% with %>', async () => {
+        const items = await completeAt([
+            '<%-- @var App\\PageTypes\\HomePage --%>',
+            '<% with $SiteConfig %>',
+            '    $T|',
+            '<% end_with %>',
+        ].join('\n'));
+        assert.ok(items.map((i) => i.label).includes('TermsLink'));
+    });
+
+    test('trait members are suggested', async () => {
+        const items = await completeAt([
+            '<%-- @var App\\PageTypes\\HomePage --%>',
+            '<p>$HeroImage.F|</p>',
+        ].join('\n'));
+        assert.ok(items.map((i) => i.label).includes('Fill'),
+            'ImageManipulation::Fill arrives through a trait');
+    });
+
+    test('<% with %> on a global narrows suggestions to its class', async () => {
+        const items = await completeAt([
+            '<%-- @var App\\PageTypes\\HomePage --%>',
+            '<% with $SiteConfig %>',
+            '    $C|',
+            '<% end_with %>',
+        ].join('\n'));
+        const labels = items.map((i) => i.label);
+        assert.ok(labels.includes('ContactUsLink'), `expected SiteConfig fields, got ${labels.slice(0, 12)}`);
+        assert.ok(!labels.includes('Subtitle'), 'the page class should not leak in');
+    });
+
+    test('<% with %> on a relation narrows suggestions to its class', async () => {
+        const items = await completeAt([
+            '<%-- @var App\\PageTypes\\HomePage --%>',
+            '<% with $HeroImage %>',
+            '    $N|',
+            '<% end_with %>',
+        ].join('\n'));
+        const labels = items.map((i) => i.label);
+        assert.ok(labels.includes('Name'), `expected File fields, got ${labels.slice(0, 12)}`);
+    });
+
+    test('$Up. offers the enclosing scope members', async () => {
+        const items = await completeAt([
+            '<%-- @var App\\PageTypes\\HomePage --%>',
+            '<% loop $Testimonials %>',
+            '    $Up.S|',
+            '<% end_loop %>',
+        ].join('\n'));
+        const labels = items.map((i) => i.label);
+        assert.ok(labels.includes('Subtitle'), `expected page fields, got ${labels.slice(0, 12)}`);
+        assert.ok(!labels.includes('Quote'), 'the loop scope should not leak back in');
+    });
+
     test('a dot on a list offers list methods rather than element members', async () => {
         const items = await completeAt([
             '<%-- @var App\\PageTypes\\HomePage --%>',

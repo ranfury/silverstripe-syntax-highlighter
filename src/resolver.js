@@ -98,6 +98,11 @@ function buildScopeStack(index, parsed, offset, baseScope) {
             stack.push([]);
             continue;
         }
+        if (resolved.status === 'global') {
+            // A global is a single object, so `<% loop %>` and `<% with %>` both enter it.
+            stack.push([resolved.cls]);
+            continue;
+        }
         const { member } = resolved;
         const wanted = frame.kind === 'loop'
             ? (member.elementType || (member.isList ? null : member.type))
@@ -120,6 +125,8 @@ function resolveSubject(index, stack, subject) {
     if (result.status === 'resolved') return result;
     // `$Items.Sort('Name')` ends on a list call but still identifies `Items`.
     if (result.status === 'listMethod' && result.member) return result;
+    // `<% with $SiteConfig %>` enters a global's class rather than a member's.
+    if (result.status === 'global' && result.cls) return result;
     return null;
 }
 
@@ -132,19 +139,24 @@ function walkChain(index, stack, segments, upto) {
     let startAt = 0;
 
     if (first.name === 'Up' || first.name === 'Top' || first.name === 'Me') {
-        if (upto === 0) return { status: 'language', name: first.name };
         if (first.name === 'Up') scope = stack.length >= 2 ? stack[stack.length - 2] : [];
         else if (first.name === 'Top') scope = stack[0] || [];
+        // Report the scope these hop to, so `$Up.` can be completed against it.
+        if (upto === 0) return { status: 'language', name: first.name, cls: scope[0] || null };
         startAt = 1;
     } else if (LANGUAGE_VARIABLES.has(first.name)) {
-        if (upto === 0) return { status: 'language', name: first.name };
+        if (upto === 0) return { status: 'language', name: first.name, cls: null };
         startAt = 1;
         scope = [];
     } else if (GLOBAL_VARIABLES.has(first.name) && !resolveInScope(index, scope, first.name)) {
         // A real field of the same name on the current class wins over the global.
-        if (upto === 0) return { status: 'global', name: first.name };
+        const globalType = GLOBAL_VARIABLES.get(first.name);
+        const target = globalType ? index.getClass(globalType) : null;
+        if (upto === 0) {
+            return { status: 'global', name: first.name, type: globalType, cls: target };
+        }
         startAt = 1;
-        scope = [];
+        scope = target ? [target] : [];
     }
 
     let resolved = null;

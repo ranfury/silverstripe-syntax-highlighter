@@ -50,6 +50,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
   character after the `$` rather than listing every member.
 - `editor.suggest.snippetsPreventQuickSuggestions` now defaults to `false` for `.ss`
   files, so suggestions still appear while tabbing through a snippet's placeholders.
+- Template globals carry their type, so `$SiteConfig.ContactUsLink`,
+  `<% with $SiteConfig %>` and `$CurrentMember.FirstName` navigate and complete like any
+  other object — including members added to them by traits and `_config` extensions.
+  Globals that evaluate to a string (`$ThemeDir`, `$BaseHref`, `$Layout`, …) carry no
+  class and are not treated as though they had members. `$Up.` and `$Top.` complete
+  against the scope they hop to.
+- Suggestions now include members that arrive through **traits** and through
+  `_config` **extensions**, not just the inheritance chain. Lookup already searched
+  those, so a field such as `$SiteConfig.TermsLink` would jump to its declaration but
+  never appear as a suggestion. Both now share one enumerator, with a test asserting they
+  agree.
 - **Format Document** and **Format Selection** for `.ss` files: re-indents HTML, SVG,
   Silverstripe blocks, multi-line attribute lists and `<script>` / `<style>` bodies,
   and tidies whitespace inside tags. Only leading and trailing whitespace changes,

@@ -32,10 +32,22 @@ const LANGUAGE_VARIABLES = new Set([
     'Even', 'Odd', 'EvenOdd', 'IsFirst', 'IsLast', 'Modulus', 'MultipleOf',
 ]);
 
-/** Template globals that never belong to the current record. */
-const GLOBAL_VARIABLES = new Set([
-    'ThemeDir', 'BaseHref', 'BaseURL', 'AbsoluteBaseURL',
-    'CurrentMember', 'CurrentUser', 'SiteConfig', 'Now', 'Layout', 'MetaTags',
+/**
+ * Template globals that never belong to the current record, mapped to the class they
+ * evaluate to so that `$SiteConfig.Foo` and `<% with $SiteConfig %>` narrow scope the
+ * same way a relation does. `null` means the value is a string rather than an object.
+ */
+const GLOBAL_VARIABLES = new Map([
+    ['SiteConfig', 'SilverStripe\\SiteConfig\\SiteConfig'],
+    ['CurrentMember', 'SilverStripe\\Security\\Member'],
+    ['CurrentUser', 'SilverStripe\\Security\\Member'],
+    ['Now', 'SilverStripe\\ORM\\FieldType\\DBDatetime'],
+    ['ThemeDir', null],
+    ['BaseHref', null],
+    ['BaseURL', null],
+    ['AbsoluteBaseURL', null],
+    ['Layout', null],
+    ['MetaTags', null],
 ]);
 
 /** Escaping helpers that are template syntax, not class members. */
