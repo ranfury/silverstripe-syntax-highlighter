@@ -192,6 +192,126 @@ stable('silverstripe comments are left alone', `
     <p>x</p>
 </div>`);
 
+// --- comments ------------------------------------------------------------------------
+
+fixes('commented-out markup keeps its shape and moves with the comment', `
+<div>
+<section>
+<%-- <div class="old">
+    <p>Old layout</p>
+</div> --%>
+<p>$Title</p>
+</section>
+</div>`, `
+<div>
+    <section>
+        <%-- <div class="old">
+            <p>Old layout</p>
+        </div> --%>
+        <p>$Title</p>
+    </section>
+</div>`);
+
+stable('a multi-line comment indented as a block keeps its own indent', `
+<div>
+    <%--
+        Notes about this block,
+            with a nested point.
+    --%>
+    <p>x</p>
+</div>`);
+
+stable('multi-line html comments keep their shape', `
+<ul>
+    <!-- <li>
+        <a href="#">Old</a>
+    </li> -->
+    <li>New</li>
+</ul>`);
+
+stable('markup after a comment on its closing line is still indented normally', `
+<div>
+    <%-- a
+    b --%><p>x</p>
+    <p>y</p>
+</div>`);
+
+fixes('commented-out wrappers indent what they wrap when both sides are commented out', `
+<div>
+<%-- <div class="wrap"> --%>
+<% if $Items %>
+<%-- <% loop $Items %> --%>
+<p>$Title</p>
+<%-- <% end_loop %> --%>
+<% end_if %>
+<%-- </div> --%>
+</div>`, `
+<div>
+    <%-- <div class="wrap"> --%>
+        <% if $Items %>
+            <%-- <% loop $Items %> --%>
+                <p>$Title</p>
+            <%-- <% end_loop %> --%>
+        <% end_if %>
+    <%-- </div> --%>
+</div>`);
+
+stable('a commented-out if with a commented-out else', `
+<%-- <% if $A %> --%>
+    <p>a</p>
+<%-- <% else %> --%>
+    <p>b</p>
+<%-- <% end_if %> --%>`);
+
+stable('a wrapper commented out on one side only does not shift the rest', `
+<div>
+    <%-- <% cached 'nav' %> --%>
+    <p>x</p>
+    <%-- <div class="gone"> --%>
+    <p>y</p>
+</div>
+<p>after</p>`);
+
+test('commented-out tags never unbalance a file', () => {
+    const result = format(['<%-- </div> --%>', '<%-- <% end_if %> --%>', '<p>x</p>'].join('\n'));
+    assert.ok(!result.unbalanced);
+    assert.strictEqual(result.lines[2], '<p>x</p>');
+});
+
+// --- pasting -------------------------------------------------------------------------
+
+/** VS Code gives the first pasted line the cursor's indent; the rest keep the copied indent. */
+function pasteInto(host, clip) {
+    const at = host.indexOf('|');
+    const text = host.slice(0, at) + clip + host.slice(at + 1);
+    const startLine = host.slice(0, at).split('\n').length - 1;
+    return format(text, { pasted: { startLine, endLine: startLine + clip.split('\n').length - 1 } }).lines;
+}
+
+test('css pasted at an indented cursor inside <style> keeps its shape', () => {
+    const lines = pasteInto(['<style>', '    .a {', '        color: red;', '    }', '    |', '</style>'].join('\n'),
+        ['.b {', '    color: blue;', '}'].join('\n'));
+    assert.deepStrictEqual(lines.slice(4, 7), ['    .b {', '        color: blue;', '    }']);
+});
+
+test('css copied from a deeper indent and pasted inside <style> is brought back', () => {
+    const lines = pasteInto(['<style>', '    .a {}', '    |', '</style>'].join('\n'),
+        ['.b {', '                color: blue;', '            }'].join('\n'));
+    assert.deepStrictEqual(lines.slice(2, 5), ['    .b {', '        color: blue;', '    }']);
+});
+
+test('a pasted multi-line comment keeps its shape', () => {
+    const lines = pasteInto(['<div>', '    |', '</div>'].join('\n'),
+        ['<%-- <div class="old">', '                <p>x</p>', '            </div> --%>'].join('\n'));
+    assert.deepStrictEqual(lines.slice(1, 4), ['    <%-- <div class="old">', '        <p>x</p>', '    </div> --%>']);
+});
+
+test('pasted pre content is never shifted', () => {
+    const lines = pasteInto(['<div>', '    |', '</div>'].join('\n'),
+        ['<pre>', '      spaced', '</pre>'].join('\n'));
+    assert.strictEqual(lines[2], '      spaced');
+});
+
 stable('attribute values containing angle brackets', `
 <div>
     <a title="a > b" href="#">x</a>

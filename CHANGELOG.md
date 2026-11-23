@@ -4,6 +4,18 @@ All notable changes to the "silverstripe-syntax-highlighter" extension will be d
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.1.1]
+
+### Fixed
+
+- Formatting (including Format On Paste) no longer flattens multi-line `<%-- --%>` and
+  `<!-- -->` comments: commented-out markup keeps its shape and moves with the comment.
+- Commented-out wrappers (`<%-- <% if $X %> --%>` … `<%-- <% end_if %> --%>`,
+  `<%-- <div> --%>` … `<%-- </div> --%>`) indent their contents when both sides are
+  commented out, in the formatter and when pressing Enter.
+- CSS and JavaScript pasted into `<style>` / `<script>` at an indented cursor no longer
+  comes out skewed.
+
 ## [0.1.0]
 
 ### Added

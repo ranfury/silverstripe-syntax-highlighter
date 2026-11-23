@@ -141,6 +141,40 @@ suite('Silverstripe templates', () => {
         assert.ok(!edits || edits.length === 0, 'expected no edits for a formatted template');
         assert.strictEqual(document.getText(), before);
     });
+
+    test('format on paste keeps the shape of pasted comments and css', async () => {
+        const editorConfig = vscode.workspace.getConfiguration('editor', { languageId: 'silverstripe' });
+        await editorConfig.update('formatOnPaste', true, vscode.ConfigurationTarget.Global, true);
+        try {
+            const pasteAt = async (lines, line, clip) => {
+                const document = await vscode.workspace.openTextDocument({ language: 'silverstripe', content: lines.join('\n') });
+                const editor = await vscode.window.showTextDocument(document, { preview: false });
+                editor.options = { tabSize: 4, insertSpaces: true };
+                const end = document.lineAt(line).range.end;
+                editor.selection = new vscode.Selection(end, end);
+                await vscode.env.clipboard.writeText(clip.join('\n'));
+                const pasted = document.getText().length + clip.join('\n').length;
+                await vscode.commands.executeCommand('editor.action.clipboardPasteAction');
+                // Formatting runs after the paste lands; give it a moment to apply.
+                for (let i = 0; i < 50 && document.getText().length === pasted; i++) {
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                }
+                return document.getText().split('\n');
+            };
+
+            const comment = await pasteAt(['<div>', '    ', '</div>'], 1,
+                ['<%-- <div class="old">', '                <p>x</p>', '            </div> --%>']);
+            assert.deepStrictEqual(comment, [
+                '<div>', '    <%-- <div class="old">', '        <p>x</p>', '    </div> --%>', '</div>',
+            ]);
+
+            const css = await pasteAt(['<style>', '    .a {}', '    ', '</style>'], 2,
+                ['.b {', '    color: blue;', '}']);
+            assert.deepStrictEqual(css, ['<style>', '    .a {}', '    .b {', '        color: blue;', '    }', '</style>']);
+        } finally {
+            await editorConfig.update('formatOnPaste', undefined, vscode.ConfigurationTarget.Global, true);
+        }
+    });
 });
 
 // --- completion ---------------------------------------------------------------------

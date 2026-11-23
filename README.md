@@ -222,6 +222,12 @@ It is deliberately conservative — it only ever changes leading and trailing
 whitespace, never moves anything between lines, and leaves `<pre>` and `<textarea>`
 content byte-for-byte alone, so formatting can never change what a template renders.
 
+Commented-out markup keeps the shape it was written in and moves with the comment. A
+comment that holds a single tag, such as `<%-- <% if $X %> --%>` or `<%-- <div> --%>`,
+indents what follows it like the real tag would, as long as its closer is commented out
+too. With `editor.formatOnPaste` on, a block pasted at an indented cursor keeps its
+shape, including comments and `<script>` / `<style>` content.
+
 ## PHP files
 
 Silverstripe is PHP as much as it is templates, and VS Code's built-in PHP support has a

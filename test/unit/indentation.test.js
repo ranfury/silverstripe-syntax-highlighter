@@ -191,3 +191,28 @@ test('the bundled sample template re-indents to itself', () => {
     const sample = fs.readFileSync(path.join(__dirname, '..', '..', 'sample.ss'), 'utf8').replace(/\n$/, '');
     assert.strictEqual(reindent(sample), sample);
 });
+
+stable('commented-out wrappers indent what they wrap, as the formatter does', `
+<div>
+    <%-- <div class="wrap"> --%>
+        <%-- <% if $Items %> --%>
+            <p>$Title</p>
+        <%-- <% end_if %> --%>
+    <%-- </div> --%>
+    <!-- <section> -->
+        <p>x</p>
+    <!-- </section> -->
+</div>`);
+
+test('comments that are not a single tag do not change indent', () => {
+    for (const line of [
+        '<%-- <div>x</div> --%>',
+        '<%-- <div> and a note --%>',
+        '<%-- <img src="x.png"> --%>',
+        '<%-- <path d="M0 0"/> --%>',
+        '<%-- just a note --%>',
+    ]) {
+        assert.ok(!increase.test(line), `should not increase indent: ${line}`);
+        assert.ok(!decrease.test(line), `should not decrease indent: ${line}`);
+    }
+});

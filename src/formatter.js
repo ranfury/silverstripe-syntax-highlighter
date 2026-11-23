@@ -61,9 +61,38 @@ function scan(text) {
     const lineOf = makeLineLookup(starts);
     const events = [];
     const regions = [];
+    const commentedTags = [];
     const len = text.length;
 
-    const emit = (offset, delta) => events.push({ line: lineOf(offset), delta });
+    const emit = (offset, delta) => events.push({ offset, line: lineOf(offset), delta });
+
+    /**
+     * A comment is opaque to the indent scan, but it still needs two things: a body that
+     * spans several lines keeps its own shape (commented-out markup would otherwise be
+     * flattened), and a comment holding nothing but one block or HTML tag is remembered
+     * so it can indent like that tag once it is known to have a commented partner.
+     */
+    const comment = (start, openLength, closer) => {
+        const end = text.indexOf(closer, start + openLength);
+        const stop = end === -1 ? len : end + closer.length;
+        const openLine = lineOf(start);
+        const closeLine = lineOf(Math.max(start, stop - 1));
+        if (closeLine > openLine) {
+            const rest = text.slice(stop, closeLine + 1 < starts.length ? starts[closeLine + 1] : len);
+            regions.push({
+                kind: 'comment',
+                openLine,
+                startLine: openLine + 1,
+                // A closing line that carries more markup after the comment is indented
+                // as markup instead.
+                endLine: rest.trim() ? closeLine - 1 : closeLine,
+            });
+        } else if (end !== -1) {
+            const tag = commentedTag(text.slice(start + openLength, end).trim());
+            if (tag) commentedTags.push({ ...tag, offset: start });
+        }
+        return stop;
+    };
 
     let i = 0;
     while (i < len) {
@@ -73,8 +102,7 @@ function scan(text) {
 
         // Silverstripe comment
         if (text.startsWith('<%--', i)) {
-            const end = text.indexOf('--%>', i + 4);
-            i = end === -1 ? len : end + 4;
+            i = comment(i, 4, '--%>');
             continue;
         }
 
@@ -97,8 +125,7 @@ function scan(text) {
 
         // HTML comment
         if (text.startsWith('<!--', i)) {
-            const end = text.indexOf('-->', i + 4);
-            i = end === -1 ? len : end + 3;
+            i = comment(i, 4, '-->');
             continue;
         }
 
@@ -150,7 +177,60 @@ function scan(text) {
         }
     }
 
+    pairCommentedTags(commentedTags, emit);
+    // Paired comments are emitted after the main walk; a line's indent depends on the
+    // order of its deltas, so put them back in document order.
+    events.sort((a, b) => a.offset - b.offset);
+
     return { events, regions, lineOf };
+}
+
+/**
+ * Classify a comment's content when it is exactly one tag, as when a wrapper has been
+ * commented out: `<%-- <% if $X %> --%>`, `<%-- <div class="a"> --%>`, `<!-- </div> -->`.
+ */
+function commentedTag(content) {
+    if (content.startsWith('<%')) {
+        if (content.startsWith('<%--') || findTagEnd(content, 2, '%>') !== content.length - 2) return null;
+        const keyword = (/^<%\s*([A-Za-z_][A-Za-z0-9_]*)/.exec(content) || [])[1];
+        if (BLOCK_OPENERS.has(keyword)) return { role: 'open', key: `ss:${keyword}` };
+        if (BLOCK_CLOSERS.has(keyword)) return { role: 'close', key: `ss:${keyword.slice(4)}` };
+        if (BLOCK_CONTINUATIONS.has(keyword)) return { role: 'continue', key: 'ss:if' };
+        return null;
+    }
+    const closing = /^<\/([A-Za-z][-_.:A-Za-z0-9]*)\s*>$/.exec(content);
+    if (closing) return { role: 'close', key: `html:${closing[1].toLowerCase()}` };
+    const opening = /^<([A-Za-z][-_.:A-Za-z0-9]*)/.exec(content);
+    if (!opening) return null;
+    const name = opening[1].toLowerCase();
+    const tagEnd = findAttributeEnd(content, opening[0].length);
+    if (tagEnd !== content.length - 1 || content[tagEnd - 1] === '/' || VOID_ELEMENTS.has(name)) return null;
+    return { role: 'open', key: `html:${name}` };
+}
+
+/**
+ * Emit indent deltas for commented-out tags, but only for openers that a later
+ * commented-out closer matches. A wrapper commented out on one side only — the common
+ * leftover — then cannot shift the rest of the file.
+ */
+function pairCommentedTags(tags, emit) {
+    const stack = [];
+    for (const tag of tags) {
+        if (tag.role === 'open') {
+            stack.push({ ...tag, continuations: [] });
+        } else if (tag.role === 'continue') {
+            const top = stack[stack.length - 1];
+            if (top && top.key === tag.key) top.continuations.push(tag.offset);
+        } else {
+            const at = stack.map((entry) => entry.key).lastIndexOf(tag.key);
+            if (at === -1) continue;
+            const opener = stack[at];
+            stack.length = at; // anything opened inside it and never closed is dropped
+            emit(opener.offset, +1);
+            for (const offset of opener.continuations) { emit(offset, -1); emit(offset, +1); }
+            emit(tag.offset, -1);
+        }
+    }
 }
 
 /** Index of the `%>` (or other closer) that ends a tag, skipping quoted strings. */
@@ -234,12 +314,22 @@ function normaliseTags(text) {
 /**
  * Format `text`.
  *
+ * `options.pasted` (`{ startLine, endLine }`, zero-based) marks a block that was just
+ * pasted at an indented cursor. VS Code gives the first pasted line the cursor's indent
+ * but leaves every other line with the indent it had where it was copied from, so for
+ * bodies whose shape is kept as written (comments, `<script>`, `<style>`) the rest of the
+ * block is first lined up with the first line.
+ *
  * @returns {{ text: string, lines: string[], original: string[], unbalanced: boolean }}
  */
 function format(text, options = {}) {
     const tabSize = options.tabSize || 4;
     const insertSpaces = options.insertSpaces !== false;
     const unit = insertSpaces ? ' '.repeat(tabSize) : '\t';
+    /** Leading whitespace for a visible width, in whole units where possible. */
+    const indentOf = (width) => (insertSpaces
+        ? ' '.repeat(width)
+        : '\t'.repeat(Math.floor(width / tabSize)) + ' '.repeat(width % tabSize));
 
     const source = options.normaliseTagSpacing === false ? text : normaliseTags(text);
     const { events, regions } = scan(source);
@@ -254,17 +344,22 @@ function format(text, options = {}) {
         eventsByLine.get(event.line).push(event.delta);
     }
 
+    const shiftOf = pasteShift(original, options.pasted, tabSize);
+    const widthOf = (line) => Math.max(0, leadingWidth(original[line], tabSize) + shiftOf(line));
+
     const regionByLine = new Map();
     for (const region of regions) {
         for (let line = region.startLine; line <= region.endLine; line++) regionByLine.set(line, region);
     }
-    // A raw body is re-based as a block, so it needs the shallowest indent it contains.
+    // Raw and comment bodies are re-based as a block, so each needs the shallowest
+    // indent it contains. A comment body is measured against its opening line too, so
+    // markup commented out at its own depth keeps that depth.
     for (const region of regions) {
-        let min = Infinity;
+        let min = region.kind === 'comment' ? widthOf(region.openLine) : Infinity;
         for (let line = region.startLine; line <= region.endLine; line++) {
             const text_ = original[line];
             if (text_ === undefined || !text_.trim()) continue;
-            min = Math.min(min, leadingWidth(text_, tabSize));
+            min = Math.min(min, widthOf(line));
         }
         region.minIndent = min === Infinity ? 0 : min;
     }
@@ -295,8 +390,13 @@ function format(text, options = {}) {
         } else if (region && region.kind === 'raw') {
             // Not a JavaScript or CSS formatter: keep the body's own relative shape and
             // only re-base it, so a whole file shifting sideways still gets fixed.
-            const relative = Math.max(0, leadingWidth(raw, tabSize) - region.minIndent);
-            out.push(unit.repeat(level) + ' '.repeat(relative) + trimmed);
+            const relative = Math.max(0, widthOf(line) - region.minIndent);
+            out.push(indentOf(level * tabSize + relative) + trimmed);
+        } else if (region && region.kind === 'comment') {
+            // Commented-out markup keeps the shape it was written in, moved along with
+            // the line the comment opens on.
+            const relative = Math.max(0, widthOf(line) - region.minIndent);
+            out.push(indentOf(leadingWidth(out[region.openLine], tabSize) + relative) + trimmed);
         } else {
             const indent = level + lowest;
             if (indent < 0) unbalanced = true;
@@ -310,6 +410,24 @@ function format(text, options = {}) {
     if (level !== 0) unbalanced = true;
 
     return { text: out.join(eol), lines: out, original, unbalanced };
+}
+
+/**
+ * Per-line width adjustment for a pasted block: everything after its first line moves
+ * so that the block's shallowest line sits at the first line's indent, on the
+ * assumption that the copy started at the first line's text.
+ */
+function pasteShift(lines, pasted, tabSize) {
+    if (!pasted || !(pasted.endLine > pasted.startLine)) return () => 0;
+    const first = lines[pasted.startLine];
+    if (first === undefined || !first.trim()) return () => 0;
+    let min = Infinity;
+    for (let line = pasted.startLine + 1; line <= pasted.endLine && line < lines.length; line++) {
+        if (lines[line].trim()) min = Math.min(min, leadingWidth(lines[line], tabSize));
+    }
+    if (min === Infinity) return () => 0;
+    const delta = leadingWidth(first, tabSize) - min;
+    return (line) => (line > pasted.startLine && line <= pasted.endLine ? delta : 0);
 }
 
 /** Visible width of a line's leading whitespace, with tabs expanded. */
